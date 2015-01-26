@@ -2,18 +2,24 @@
 #define _country_h
 
 #define BUFFSIZE 512
+typedef unsigned char boolean;
 /**
  * the country struct will hold 
  * all of the country data
  */
 typedef struct country {
-  char *code;
-  char *name;
-  char *pop;
-  float lifeExp;
+    char *code;
+    char *name;
+    char *pop;
+    float lifeExp;
 } country;
 
-void country_destroy(country *self);
+typedef struct countryList {
+    int size;
+    country **countries;
+} countryList;
 
-country **read_countries(void);
+    void country_destroy(country *self);
+
+    countryList *read_countries(void);
 #endif

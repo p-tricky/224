@@ -11,6 +11,18 @@ country *country_init() {
   return ctry;
 }
 
+countryList *countryList_init() {
+  countryList *list = malloc(sizeof(countryList));
+  list->size = 0;
+  return list;
+}
+
+void addEmptyCountry(countryList *self) {
+  if ((self->size % 50) == 0) 
+    self->countries = realloc(self->countries, (self->size+50)*sizeof(country *));
+  self->countries[(self->size)++] = country_init();
+}
+
 void country_destroy(country *self) {
   if (self->code) {free(self->code);}
   if (self->name) {free(self->name);}
@@ -18,114 +30,124 @@ void country_destroy(country *self) {
   free(self);
 }
 
-void countries_destroy(country **self) {
+void countryList_destroy(countryList *self) {
   int i = 0;
-  while (i < 238) {
-    if (self[i]) (country_destroy(self[i]));
+  while (i < (self->size/50+50)) {
+    if (self->countries[i]) (country_destroy(self->countries[i]));
     i++;
   }
+  free(self->countries);
   free(self);
 }
 
-country **read_countries(void) {
-  int n, i;
-  unsigned long bufStart, currBuffPostion;
-  char *bufPtr, *savePtr1, *savePtr1LastValue, *savePtr2, *lineToken, *fieldToken, *lineTokenCp;
-  char buf[BUFFSIZE];
-  int count = 0;
-  country **countries = calloc(238, sizeof(country *));
-  while (count < 238) {
-    countries[count] = calloc(1, sizeof(country));
-    count++;
+void print_list(countryList *self) {
+  int i = 0;
+  while (i < self->size) {
+    printf("%d %s %50s %10s %f\n", i, 
+        self->countries[i]->code,
+        self->countries[i]->name,
+        self->countries[i]->pop,
+        self->countries[i]->lifeExp);
+    i++;
   }
-  count = 0;
-  check_mem(countries);
-  int countriesFd = open("./AllCountries.dat", O_RDONLY);
-  check(countriesFd != -1, "Failed to open file");
-  while ((n = read(countriesFd, buf, BUFFSIZE)) > 0) {
-    int currentPos = lseek(countriesFd, 0, SEEK_CUR);
+}
+
+countryList *read_countries(void) {
+  // declare local variables
+  int i;
+  boolean lineTokenIsCompleteLine;
+  int numBytesAfterLastEndLineInBuffer;
+  char *bufPtr, *currPositionInBuffer, *lastEndLineInBuffer, *currPositionInLineToken, *lineToken, *fieldToken;
+  char *lineTokenCp = calloc(1, 200);
+  char buf[BUFFSIZE];
+
+  // create countryList container
+  countryList *countryList = countryList_init();
+
+  // open file, find the end of the file, then reset to beginning of file
+  int allCountriesFileDescriptor = open("./AllCountries.dat", O_RDONLY);
+  check(allCountriesFileDescriptor != -1, "Failed to open file");
+  int endOfFile = lseek(allCountriesFileDescriptor, 0, SEEK_END);
+  lseek(allCountriesFileDescriptor, 0, SEEK_SET);
+
+  // loop to fill buffer
+  while (read(allCountriesFileDescriptor, buf, BUFFSIZE) > 0) {
+    int currFilePosition = lseek(allCountriesFileDescriptor, 0, SEEK_CUR);
     bufPtr = buf;
-    while (1) {
-      lineToken = strtok_r(bufPtr, "\n", &savePtr1);
-      char completeLine = *(savePtr1-1) == 0;
-      if (lineToken == NULL) {
-        if (currentPos != lseek(countriesFd, 0, SEEK_END)) {
-          currBuffPostion = (unsigned long)savePtr1LastValue;
-          bufStart = (unsigned long)&buf;
-          int fileRewindBytes = BUFFSIZE - (currBuffPostion-bufStart);
-          lseek(countriesFd, currentPos-fileRewindBytes, SEEK_SET);
-        }
+    lineToken = "";
+
+    // loop to get line tokens from buffer
+    while (lineToken != NULL) {
+      lineToken = strtok_r(bufPtr, "\n", &currPositionInBuffer);
+      lineTokenIsCompleteLine = *(currPositionInBuffer-1) == 0;
+
+      // If the line was cut off by the end of the buffer and 
+      // we are not at the end of the file, then we need to seek
+      // to the last complete line in the file before reading the buffer
+      if ((!lineTokenIsCompleteLine) && (currFilePosition != endOfFile)) {
+          numBytesAfterLastEndLineInBuffer
+            = (unsigned long)&buf + BUFFSIZE - (unsigned long)lastEndLineInBuffer;
+          lseek(allCountriesFileDescriptor, 
+              currFilePosition-numBytesAfterLastEndLineInBuffer, 
+              SEEK_SET);
         break;
       }
-      lineTokenCp = strdup(lineToken);
-      i = 0;
-      while (completeLine) {
-        fieldToken = strtok_r(lineTokenCp, ",", &savePtr2);
-        if (fieldToken == NULL) break;
-        if (count > 237) break;
-        check_mem(countries[count]);
-        if (i==1) {
-          countries[count]->code = strdup(fieldToken);
-          check(countries[count]->code != 0, "Failed to copy code");
+
+      // If the line wasn't cut off then tokenize it 
+      // and store the appropriate tokens in the countries
+      // in the list
+      if (lineTokenIsCompleteLine) {
+        lastEndLineInBuffer = currPositionInBuffer;
+        lineTokenCp = strdup(lineToken);
+        i = 0;
+        addEmptyCountry(countryList);
+
+        // looping to get field tokens from line token
+        while (i<9) {
+          fieldToken = strtok_r(lineTokenCp, ",", &currPositionInLineToken);
+          if (fieldToken == NULL) break;
+          if (i==1) {
+            (countryList->countries)[(countryList->size-1)]->code 
+              = strdup(fieldToken);
+            check((countryList->countries)[(countryList->size-1)]->code != 0, 
+                "Failed to copy code");
+          }
+          if (i==2) {
+            (countryList->countries)[(countryList->size-1)]->name 
+              = strdup(fieldToken);
+            check((countryList->countries)[(countryList->size-1)]->name 
+                != 0, "Failed to copy name");
+          }
+          if (i==7) {
+            (countryList->countries)[(countryList->size-1)]->pop 
+              = strdup(fieldToken);
+            check((countryList->countries)[(countryList->size-1)]->pop
+                != 0, "Failed to copy pop");
+          }
+          if (i==8) 
+            (countryList->countries)[(countryList->size-1)]->lifeExp 
+              = atof(fieldToken);
+          lineTokenCp = NULL;
+          i++;
         }
-        if (i==2) {
-          countries[count]->name = strdup(fieldToken);
-          check(countries[count]->name != 0, "Failed to copy name");
-        }
-        if (i==7) {
-          countries[count]->pop = strdup(fieldToken);
-          check(countries[count]->pop != 0, "Failed to copy pop");
-        }
-        if (i==8) countries[count]->lifeExp = atof(fieldToken);
-        lineTokenCp = NULL;
-        i++;
-      }
-      if (completeLine) {
-        savePtr1LastValue = savePtr1;
-        count++;
       }
       bufPtr = NULL;
     }
   }
-  close(countriesFd);
-  return countries;
+  close(allCountriesFileDescriptor);
+  return countryList;
 
 error:
   printf("There was an error\n");
-  close(countriesFd);
-  if (countries) countries_destroy(countries);
-  return -1;
-    
+  if (countryList) countryList_destroy(countryList);
+  return NULL;
+
 }
 
 int main() {
-  /* First tests
- country *country = country_init();
- check_mem(country);
- country->name = strdup("USA");
- check(country->name != 0, "Failed to copy name");
- //printf("Code: %s\n", country->code);
- printf("Name: %s\n", country->name);
- //printf("Population: %s\n", country->pop);
- //printf("Life Expectancy: %f\n", country->lifeExp);
- country_destroy(country);
-
- return 0;
-
-error:
- if (country) free(country);
- if (country->name) free(country->name);
- return -1;
- */
-  country **countries = read_countries();
-  int i = 0;
-  while (i < 238) {
-    printf("%3d: %x %3s %50s %10s %f\n", i, countries[i],
-        countries[i]->code, countries[i]->name, 
-        countries[i]->pop, countries[i]->lifeExp);
-    i++;
-  }
-  countries_destroy(countries);
+  countryList *countries = read_countries();
+  print_list(countries);
+  countryList_destroy(countries);
 
   return 0;
 }
