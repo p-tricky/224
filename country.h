@@ -16,6 +16,7 @@ typedef struct country {
 
 typedef struct countryList {
     int size;
+    int blocks;
     country **countries;
 } countryList;
 
