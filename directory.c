@@ -58,7 +58,6 @@ void swap(int j, int k, directory *self) {
 void bubble_sort(directory *self) {
   int j = 0;
   int i = 0;
-  int greaterThan;
   while (j < self->size) {
     i = 0;
     while(i+1 < self->size-j) {
@@ -114,16 +113,3 @@ void print_directory(directory *self) {
     i++;
   }
 }
-
-
-/*
-int main() {
-  FILE *directoryFP = fopen("./directory.bin", "rb");
-  directory *d = build_directory_from_countries_file();
-  bubble_sort(d);
-  char code [3] = "USA";
-  int ang = binary_search(0, d->size, code, d);
-  read_country_data_from_bin_file(ang);
-  directory_destroy(d);
-}
-*/
