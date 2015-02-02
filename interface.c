@@ -24,7 +24,8 @@ int process_input(directory *d) {
 					"May I please have another sir!");
 		}
 		else {
-			read_country_data_from_bin_file(codeAddress);
+			int rc = read_country_data_from_bin_file(codeAddress);
+			check(rc != -1, "Failed to read country from countries.bin");
 		}
 	}
 	return 0;

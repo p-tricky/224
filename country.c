@@ -1,9 +1,14 @@
 #include "country.h"
+#include "dbg.h"
 #include <stdlib.h>
 
 country *country_init() {
-  country *ctry = (country *)calloc(1, sizeof(country));
+  country *ctry = (country *)malloc(sizeof(country));
+  check_mem(ctry);
   return ctry;
+
+error:
+  return NULL;
 }
 
 void country_destroy(country *self) {

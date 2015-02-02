@@ -8,9 +8,13 @@
 
 countryList *countryList_init() {
   countryList *list = malloc(sizeof(countryList));
+  check_mem(list);
   list->size = 0;
   list->blocks = 0;
   return list;
+
+error:
+  return NULL;
 }
 
 void countryList_destroy(countryList *self) {
@@ -24,12 +28,17 @@ void countryList_destroy(countryList *self) {
   free(self);
 }
 
-void addEmptyCountry(countryList *self) {
+int addEmptyCountry(countryList *self) {
   if ((self->size % 50) == 0) {
     self->countries = realloc(self->countries, (self->size+50)*sizeof(country *));
+    check_mem(self->countries);
     self->blocks+=50;
   }
   self->countries[(self->size)++] = country_init();
+  return 0;
+
+error:
+  return -1;
 }
 
 countryList *read_countries() {
@@ -37,8 +46,10 @@ countryList *read_countries() {
   int i;
   boolean lineTokenIsCompleteLine;
   int numBytesAfterLastEndLineInBuffer;
-  char *bufPtr, *currPositionInBuffer, *lastEndLineInBuffer, *currPositionInLineToken, *lineToken, *fieldToken;
-  char *lineTokenCp = calloc(1, 200);
+  char *bufPtr, *currPositionInBuffer, *lastEndLineInBuffer, *currPositionInLineToken, 
+       *lineToken, *fieldToken, *lineTokenCp; 
+  static char *endLine = "\n";
+  static char *comma = ",";
   char buf[BUFFSIZE];
 
   // create countryList container
@@ -51,14 +62,14 @@ countryList *read_countries() {
   lseek(allCountriesFileDescriptor, 0, SEEK_SET);
 
   // loop to fill buffer
-  while (read(allCountriesFileDescriptor, buf, BUFFSIZE) > 0) {
+  while (read(allCountriesFileDescriptor, buf, BUFFSIZE-1) > 0) {
     int currFilePosition = lseek(allCountriesFileDescriptor, 0, SEEK_CUR);
     bufPtr = buf;
     lineToken = "";
 
     // loop to get line tokens from buffer
     while (lineToken != NULL) {
-      lineToken = strtok_r(bufPtr, "\n", &currPositionInBuffer);
+      lineToken = strtok_r(bufPtr, endLine, &currPositionInBuffer);
       lineTokenIsCompleteLine = *(currPositionInBuffer-1) == 0;
 
       // If the line was cut off by the end of the buffer and 
@@ -78,13 +89,13 @@ countryList *read_countries() {
       // in the list
       if (lineTokenIsCompleteLine) {
         lastEndLineInBuffer = currPositionInBuffer;
-        lineTokenCp = strdup(lineToken);
+        lineTokenCp = lineToken;
         i = 0;
         addEmptyCountry(countryL);
 
         // looping to get field tokens from line token
         while (i<9) {
-          fieldToken = strtok_r(lineTokenCp, ",", &currPositionInLineToken);
+          fieldToken = strtok_r(lineTokenCp, comma, &currPositionInLineToken);
           if (fieldToken == NULL) break;
           if (i==1) {
             (countryL->countries)[(countryL->size-1)]->code 
@@ -118,7 +129,6 @@ countryList *read_countries() {
   return countryL;
 
 error:
-  printf("There was an error\n");
   if (countryL) countryList_destroy(countryL);
   return NULL;
 

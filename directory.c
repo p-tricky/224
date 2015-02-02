@@ -3,16 +3,25 @@
 #include <stdlib.h>
 
 countryAddress *countryAddress_init() {
-	countryAddress *countryAdd = (countryAddress *)calloc(1, sizeof(countryAddress *));
-	countryAdd->countryCode = calloc(1, 4*sizeof(char));
+	countryAddress *countryAdd = (countryAddress *)malloc(sizeof(countryAddress *));
+	check_mem(countryAdd);
+	countryAdd->countryCode = malloc(4*sizeof(char));
+	check_mem(countryAdd->countryCode);
 	return countryAdd;
+
+error:
+	return NULL;
 }
 
 directory *directory_init() {
   directory *d= malloc(sizeof(directory));
+	check_mem(d);
   d->size = 0;
   d->blocks = 0;
   return d;
+
+error:
+	return NULL;
 }
 
 void directory_destroy(directory *self) {
@@ -36,18 +45,24 @@ void addCountryAddress(directory* self) {
 
 directory *build_directory_from_countries_file() {
   FILE *directoryFP = fopen("./directory.bin", "rb");
+	check(directoryFP != NULL, "Failed to open file");
   fseek(directoryFP, 0, SEEK_END);
   int lastByte = ftell(directoryFP);
   fseek(directoryFP, 0, SEEK_SET);
-  directory *directory = directory_init();
+  directory *dir = directory_init();
   while (ftell(directoryFP) < lastByte) {
-    addCountryAddress(directory);
-    fread(directory->index[directory->size-1]->countryCode, 4, 
+    addCountryAddress(dir);
+    fread(dir->index[dir->size-1]->countryCode, 4, 
         sizeof(char), directoryFP);
-    fread(&directory->index[directory->size-1]->byteOffset, 1, 
+    fread(&dir->index[dir->size-1]->byteOffset, 1, 
         sizeof(int), directoryFP);
   }
-  return directory;
+  return dir;
+
+error:
+	if (directoryFP) fclose(directoryFP);
+	if (dir) directory_destroy(dir);
+	return NULL;
 }
 
 void swap(int j, int k, directory *self) {
@@ -82,8 +97,9 @@ int binary_search(int start, int end, char code[], directory *self) {
     return binary_search(start, mid-1, code, self);
 }
 
-void read_country_data_from_bin_file(int i) {
+int read_country_data_from_bin_file(int i) {
   FILE *countriesBinFp = fopen("./countries.bin", "rb");
+	check(countriesBinFp != NULL, "Failed to open file");
   fseek(countriesBinFp, i, SEEK_SET);
   char code[4];
   int name_size;
@@ -94,15 +110,20 @@ void read_country_data_from_bin_file(int i) {
   fread(code, 1, 4, countriesBinFp);
   fread(&name_size, 1, sizeof(int), countriesBinFp);
   name = malloc(name_size);
+	check_mem(name);
   fread(name, 1, name_size, countriesBinFp);
   fread(&pop_size, 1, sizeof(int), countriesBinFp);
   pop = malloc(pop_size);
+	check_mem(pop);
   fread(pop, 1, pop_size, countriesBinFp);
   fread(&lifeExp, 1, sizeof(float), countriesBinFp);
   printf("%s %50s %10s %f\n", code, name, pop, lifeExp);
   free(name);
   free(pop);
   fclose(countriesBinFp);
+	return 0;
+error:
+	return -1;
 }
 
 void print_directory(directory *self) {

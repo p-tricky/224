@@ -17,6 +17,6 @@ typedef struct directory {
     void directory_destroy(directory *self);
     void bubble_sort(directory *self);
     int binary_search(int start, int end, char code[], directory *self);
-    void read_country_data_from_bin_file(int i);
+    int read_country_data_from_bin_file(int i);
     void print_directory(directory *self);
 #endif
