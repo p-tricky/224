@@ -1,4 +1,4 @@
-#include "apue.h"
+#include <unistd.h>
 #include "dbg.h"
 #include "country.h"
 #include "countryList.h"
@@ -134,32 +134,36 @@ error:
 
 }
 
-void write_country_to_bin_files(country *self, FILE *countryFP, 
-    FILE *directoryFP) {
-  int file_position = ftell(countryFP);
-  fwrite(self->code, 1, strlen(self->code)+1, directoryFP);
-  fwrite(&file_position, 1, sizeof(int), directoryFP);
+void write_country_to_bin_files(country *self, int countryFD, 
+    int directoryFD) {
+  int file_position = lseek(countryFD, 0, SEEK_CUR);
+  write(directoryFD, self->code, strlen(self->code)+1);
+  write(directoryFD, &file_position, sizeof(int));
   int name_size = strlen(self->name)+1;
   int pop_size = strlen(self->pop)+1;
-  fwrite(self->code, 1, strlen(self->code)+1, countryFP);
-  fwrite(&name_size, 1, sizeof(name_size), countryFP);
-  fwrite(self->name, 1, name_size, countryFP);
-  fwrite(&pop_size, 1, sizeof(pop_size), countryFP);
-  fwrite(self->pop, 1, pop_size, countryFP);
-  fwrite(&self->lifeExp, 1, sizeof(self->lifeExp), countryFP);
+  write(countryFD, self->code, strlen(self->code)+1);
+  write(countryFD, &name_size, sizeof(name_size));
+  write(countryFD, self->name, name_size);
+  write(countryFD, &pop_size, sizeof(pop_size));
+  write(countryFD, self->pop, pop_size);
+  write(countryFD, &self->lifeExp, sizeof(self->lifeExp));
 }
 
 void print_list_to_bin_file(countryList *self) {
   int i = 0;
-  FILE *countryBinFile = fopen("./countries.bin", "w+");
-  FILE *directoryBinFile = fopen("./directory.bin", "w+");
+  //FILE *countryBinFile = fopen("./countries.bin", "w+");
+  //FILE *directoryBinFile = fopen("./directory.bin", "w+");
+  int countryBinFile = open("./countries.bin",
+      O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
+  int directoryBinFile = open("./directory.bin", 
+      O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
   while (i<self->size) {
     write_country_to_bin_files(self->countries[i], countryBinFile,
         directoryBinFile);
     i++;
   }
-  fclose(countryBinFile);
-  fclose(directoryBinFile);
+  close(countryBinFile);
+  close(directoryBinFile);
 }
 
 void print_list_to_stdin(countryList *self) {

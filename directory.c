@@ -1,5 +1,7 @@
 #include "directory.h"
 #include "dbg.h"
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdlib.h>
 
 countryAddress *countryAddress_init() {
@@ -44,23 +46,21 @@ void addCountryAddress(directory* self) {
 }
 
 directory *build_directory_from_countries_file() {
-  FILE *directoryFP = fopen("./directory.bin", "rb");
-	check(directoryFP != NULL, "Failed to open file");
-  fseek(directoryFP, 0, SEEK_END);
-  int lastByte = ftell(directoryFP);
-  fseek(directoryFP, 0, SEEK_SET);
-  directory *dir = directory_init();
-  while (ftell(directoryFP) < lastByte) {
+	directory *dir = NULL;
+  int directoryFD = open("./directory.bin", O_RDONLY);
+  int lastByte = lseek(directoryFD, 0, SEEK_END);
+  lseek(directoryFD, 0, SEEK_SET);
+  dir = directory_init();
+  while (lseek(directoryFD, 0, SEEK_CUR) < lastByte) {
     addCountryAddress(dir);
-    fread(dir->index[dir->size-1]->countryCode, 4, 
-        sizeof(char), directoryFP);
-    fread(&dir->index[dir->size-1]->byteOffset, 1, 
-        sizeof(int), directoryFP);
+    read(directoryFD, dir->index[dir->size-1]->countryCode, 4* 
+        sizeof(char));
+    read(directoryFD, &dir->index[dir->size-1]->byteOffset, 
+        sizeof(int));
   }
   return dir;
 
 error:
-	if (directoryFP) fclose(directoryFP);
 	if (dir) directory_destroy(dir);
 	return NULL;
 }
@@ -98,29 +98,28 @@ int binary_search(int start, int end, char code[], directory *self) {
 }
 
 int read_country_data_from_bin_file(int i) {
-  FILE *countriesBinFp = fopen("./countries.bin", "rb");
-	check(countriesBinFp != NULL, "Failed to open file");
-  fseek(countriesBinFp, i, SEEK_SET);
+  int countriesBinFD = open("./countries.bin", O_RDONLY);
+  lseek(countriesBinFD, i, SEEK_SET);
   char code[4];
   int name_size;
   char *name;
   int pop_size;
   char *pop;
   float lifeExp;
-  fread(code, 1, 4, countriesBinFp);
-  fread(&name_size, 1, sizeof(int), countriesBinFp);
+  read(countriesBinFD, code, 4);
+  read(countriesBinFD, &name_size, sizeof(int));
   name = malloc(name_size);
 	check_mem(name);
-  fread(name, 1, name_size, countriesBinFp);
-  fread(&pop_size, 1, sizeof(int), countriesBinFp);
+  read(countriesBinFD, name, name_size);
+  read(countriesBinFD, &pop_size, sizeof(int));
   pop = malloc(pop_size);
 	check_mem(pop);
-  fread(pop, 1, pop_size, countriesBinFp);
-  fread(&lifeExp, 1, sizeof(float), countriesBinFp);
+  read(countriesBinFD, pop, pop_size);
+  read(countriesBinFD, &lifeExp, sizeof(float));
   printf("%s %50s %10s %f\n", code, name, pop, lifeExp);
   free(name);
   free(pop);
-  fclose(countriesBinFp);
+  close(countriesBinFD);
 	return 0;
 error:
 	return -1;

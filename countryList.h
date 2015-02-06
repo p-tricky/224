@@ -19,7 +19,7 @@ typedef struct countryList {
     countryList *read_countries(void);
     int addEmptyCountry(countryList *self);
     countryList *read_countries();
-    void write_country_to_bin_files(country *self, FILE *countryFP, FILE *directoryFP);
+    void write_country_to_bin_files(country *self, int countryFD, int directoryFD);
     void print_list_to_bin_file(countryList *self);
     void print_list_to_stdin(countryList *self);
 #endif
